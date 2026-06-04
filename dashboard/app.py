@@ -5,7 +5,7 @@ from plotly.subplots import make_subplots
 import requests
 import pandas as pd
 
-API_BASE = "http://api:8000"
+API_BASE = "https://financial-pipeline-seven.vercel.app"
 
 app = dash.Dash(
     __name__,
