@@ -1,7 +1,6 @@
 import dash
 from dash import dcc, html, Input, Output
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 import requests
 import pandas as pd
 
@@ -60,7 +59,7 @@ app.layout = html.Div([
 )
 def update_dropdown(n):
     try:
-        response = requests.get(f"{API_BASE}/api/stocks", timeout=5)
+        response = requests.get(f"{API_BASE}/api/stocks", timeout=30)
         stocks = response.json()["stocks"]
         return [{"label": s, "value": s} for s in stocks]
     except Exception:
@@ -86,7 +85,7 @@ def update_charts(symbol):
         return empty_fig, empty_fig, empty_fig, []
 
     try:
-        response = requests.get(f"{API_BASE}/api/stocks/{symbol}", timeout=10)
+        response = requests.get(f"{API_BASE}/api/stocks/{symbol}", timeout=30)
         data = response.json()["data"]
         df = pd.DataFrame(data)
         df["date"] = pd.to_datetime(df["date"])
@@ -176,7 +175,7 @@ def update_charts(symbol):
 )
 def update_summary(n):
     try:
-        response = requests.get(f"{API_BASE}/api/summary", timeout=10)
+        response = requests.get(f"{API_BASE}/api/summary", timeout=30)
         data = response.json()["summary"]
         df = pd.DataFrame(data)
 
