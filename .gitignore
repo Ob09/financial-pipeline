@@ -1,0 +1,29 @@
+# Environment variables - never upload secrets to GitHub
+.env
+
+# Data lake - Parquet files are too large for GitHub
+data/
+
+# Airflow logs - machine specific, not useful on GitHub
+airflow/logs/
+
+# Python cache files - created automatically by Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Jupyter notebooks checkpoints
+.ipynb_checkpoints/
+
+# VS Code settings
+.vscode/
+
+# Anaconda / Python virtual environments
+*.egg-info/
+dist/
+build/
+
+# OS generated files
+.DS_Store
+Thumbs.db
