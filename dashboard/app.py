@@ -16,7 +16,7 @@ app.layout = html.Div([
     html.Div([
         html.H1("Financial Market Dashboard",
                 style={"color": "#ffffff", "margin": "0", "fontSize": "24px"}),
-        html.P("Real-time stock analysis powered by Apache Spark",
+        html.P("Stock analysis powered by Apache Spark — Medallion Architecture",
                style={"color": "#888888", "margin": "5px 0 0 0", "fontSize": "14px"})
     ], style={"background": "#1a1a2e", "padding": "20px 30px", "borderBottom": "1px solid #333"}),
 
@@ -27,9 +27,26 @@ app.layout = html.Div([
             dcc.Dropdown(
                 id="stock-dropdown",
                 placeholder="Select a stock...",
-                style={"background": "#16213e", "color": "#000000"}
+                style={"color": "#000000"}
             )
-        ], style={"width": "300px"}),
+        ], style={"width": "250px"}),
+
+        html.Div([
+            html.Label("Time Period", style={"color": "#cccccc", "fontSize": "14px"}),
+            dcc.Dropdown(
+                id="period-dropdown",
+                options=[
+                    {"label": "1 Month",  "value": "1M"},
+                    {"label": "3 Months", "value": "3M"},
+                    {"label": "6 Months", "value": "6M"},
+                    {"label": "1 Year",   "value": "1Y"},
+                    {"label": "2 Years",  "value": "2Y"},
+                ],
+                value="1Y",
+                clearable=False,
+                style={"color": "#000000"}
+            )
+        ], style={"width": "200px"}),
 
         html.Div(id="latest-stats", style={"display": "flex", "gap": "20px", "alignItems": "center"})
 
@@ -66,14 +83,31 @@ def update_dropdown(n):
         return []
 
 
+def filter_by_period(df, period):
+    df["date"] = pd.to_datetime(df["date"])
+    end = df["date"].max()
+    if period == "1M":
+        start = end - pd.DateOffset(months=1)
+    elif period == "3M":
+        start = end - pd.DateOffset(months=3)
+    elif period == "6M":
+        start = end - pd.DateOffset(months=6)
+    elif period == "1Y":
+        start = end - pd.DateOffset(years=1)
+    else:
+        start = df["date"].min()
+    return df[df["date"] >= start]
+
+
 @app.callback(
     [Output("price-chart", "figure"),
      Output("rsi-chart", "figure"),
      Output("volatility-chart", "figure"),
      Output("latest-stats", "children")],
-    Input("stock-dropdown", "value")
+    [Input("stock-dropdown", "value"),
+     Input("period-dropdown", "value")]
 )
-def update_charts(symbol):
+def update_charts(symbol, period):
     empty_fig = go.Figure()
     empty_fig.update_layout(
         paper_bgcolor="#0f0f23",
@@ -89,25 +123,28 @@ def update_charts(symbol):
         data = response.json()["data"]
         df = pd.DataFrame(data)
         df["date"] = pd.to_datetime(df["date"])
+        df = df.sort_values("date")
+
+        df_filtered = filter_by_period(df, period)
 
         price_fig = go.Figure()
         price_fig.add_trace(go.Scatter(
-            x=df["date"], y=df["close"],
+            x=df_filtered["date"], y=df_filtered["close"],
             name="Close Price", line={"color": "#00d4ff", "width": 2}
         ))
         price_fig.add_trace(go.Scatter(
-            x=df["date"], y=df["ma_7"],
+            x=df_filtered["date"], y=df_filtered["ma_7"],
             name="MA 7", line={"color": "#ff6b6b", "width": 1, "dash": "dash"}
         ))
         price_fig.add_trace(go.Scatter(
-            x=df["date"], y=df["ma_30"],
+            x=df_filtered["date"], y=df_filtered["ma_30"],
             name="MA 30", line={"color": "#ffd93d", "width": 1, "dash": "dash"}
         ))
         price_fig.update_layout(
             title=f"{symbol} — Price with Moving Averages",
             paper_bgcolor="#0f0f23", plot_bgcolor="#0f0f23",
             font={"color": "#ffffff"},
-            xaxis={"gridcolor": "#333333"},
+            xaxis={"gridcolor": "#333333", "tickformat": "%b %Y"},
             yaxis={"gridcolor": "#333333"},
             legend={"bgcolor": "#1a1a2e"},
             margin={"t": 40, "b": 20}
@@ -115,7 +152,7 @@ def update_charts(symbol):
 
         rsi_fig = go.Figure()
         rsi_fig.add_trace(go.Scatter(
-            x=df["date"], y=df["rsi"],
+            x=df_filtered["date"], y=df_filtered["rsi"],
             name="RSI", line={"color": "#a29bfe", "width": 2}
         ))
         rsi_fig.add_hline(y=70, line={"color": "#ff6b6b", "dash": "dash"}, annotation_text="Overbought")
@@ -124,14 +161,14 @@ def update_charts(symbol):
             title="RSI (14)",
             paper_bgcolor="#0f0f23", plot_bgcolor="#0f0f23",
             font={"color": "#ffffff"},
-            xaxis={"gridcolor": "#333333"},
+            xaxis={"gridcolor": "#333333", "tickformat": "%b %Y"},
             yaxis={"gridcolor": "#333333", "range": [0, 100]},
             margin={"t": 40, "b": 20}
         )
 
         vol_fig = go.Figure()
         vol_fig.add_trace(go.Scatter(
-            x=df["date"], y=df["volatility_30"],
+            x=df_filtered["date"], y=df_filtered["volatility_30"],
             name="Volatility", line={"color": "#fd79a8", "width": 2},
             fill="tozeroy", fillcolor="rgba(253,121,168,0.1)"
         ))
@@ -139,7 +176,7 @@ def update_charts(symbol):
             title="30-Day Volatility",
             paper_bgcolor="#0f0f23", plot_bgcolor="#0f0f23",
             font={"color": "#ffffff"},
-            xaxis={"gridcolor": "#333333"},
+            xaxis={"gridcolor": "#333333", "tickformat": "%b %Y"},
             yaxis={"gridcolor": "#333333"},
             margin={"t": 40, "b": 20}
         )
@@ -160,6 +197,11 @@ def update_charts(symbol):
                 html.P(f"{latest['daily_return']:.2f}%" if latest['daily_return'] else "N/A",
                        style={"color": "#55efc4" if (latest['daily_return'] or 0) >= 0 else "#ff6b6b",
                               "margin": "0", "fontSize": "18px", "fontWeight": "bold"})
+            ]),
+            html.Div([
+                html.P("Last Updated", style={"color": "#888", "margin": "0", "fontSize": "12px"}),
+                html.P(str(latest['date'])[:10],
+                       style={"color": "#ffffff", "margin": "0", "fontSize": "14px"})
             ]),
         ]
 
